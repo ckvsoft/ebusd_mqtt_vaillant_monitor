@@ -74,7 +74,7 @@ Flask-SocketIO
 
 Die MQTT-Verbindungsdetails werden in einer Konfigurationsdatei (`config.json`) gespeichert. Wenn diese Datei nicht vorhanden ist, wird die Standardkonfiguration aus `default_config.json` verwendet.
 
-**Beispiel einer `default_config.json`:**
+**Beispiel einer `config.json`:**
 
 ```json
 {

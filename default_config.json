@@ -1,0 +1,268 @@
+{
+  "mqtt_config": {
+    "username": "",
+    "password": "",
+    "host": "localhost",
+    "port": 1883
+  },
+  "mqtt_values": {
+    "ebusd/hmu/EnergyIntegral": {
+      "type": "gauge",
+      "value": 0,
+      "range": [
+        -180,
+        180
+      ],
+      "title": "Energie Integral",
+      "color_ranges": [
+        {
+          "range": [
+            -180,
+            180
+          ],
+          "color": "gray"
+        }
+      ],
+      "isInteger": "true"
+    },
+    "ebusd/700/WaterPressure": {
+      "type": "gauge",
+      "value": 0.0,
+      "range": [
+        0,
+        4
+      ],
+      "title": "Wasserdruck",
+      "color_ranges": [
+        {
+          "range": [
+            0,
+            1
+          ],
+          "color": "red"
+        },
+        {
+          "range": [
+            1,
+            2
+          ],
+          "color": "green"
+        },
+        {
+          "range": [
+            2,
+            3
+          ],
+          "color": "orange"
+        },
+        {
+          "range": [
+            3,
+            4
+          ],
+          "color": "red"
+        }
+      ],
+      "isInteger": "false"
+    },
+    "ebusd/700/DisplayedOutsideTemp": {
+      "type": "gauge",
+      "value": 0.0,
+      "range": [
+        -25,
+        40
+      ],
+      "title": "Außentemperatur",
+      "color_ranges": [
+        {
+          "range": [
+            -25,
+            0
+          ],
+          "color": "orange"
+        },
+        {
+          "range": [
+            0,
+            32
+          ],
+          "color": "gray"
+        },
+        {
+          "range": [
+            32,
+            40
+          ],
+          "color": "red"
+        }
+      ],
+      "isInteger": "false"
+    },
+    "ebusd/700/Z1RoomTemp": {
+      "type": "gauge",
+      "value": 0.0,
+      "range": [
+        0,
+        40
+      ],
+      "title": "Innentemperatur",
+      "color_ranges": [
+        {
+          "range": [
+            0,
+            25
+          ],
+          "color": "gray"
+        },
+        {
+          "range": [
+            25,
+            30
+          ],
+          "color": "orange"
+        },
+        {
+          "range": [
+            30,
+            40
+          ],
+          "color": "red"
+        }
+      ],
+      "isInteger": "false"
+    },
+    "ebusd/700/Hc1ActualFlowTempDesired": {
+      "type": "gauge",
+      "value": 0.0,
+      "range": [
+        15,
+        45
+      ],
+      "title": "FBH VL SOLL",
+      "color_ranges": [
+        {
+          "range": [
+            15,
+            40
+          ],
+          "color": "gray"
+        },
+        {
+          "range": [
+            40,
+            45
+          ],
+          "color": "red"
+        }
+      ],
+      "isInteger": "false"
+    },
+    "ebusd/700/Hc1FlowTemp": {
+      "type": "gauge",
+      "value": 0.0,
+      "range": [
+        15,
+        45
+      ],
+      "title": "FBH VL IST",
+      "color_ranges": [
+        {
+          "range": [
+            15,
+            40
+          ],
+          "color": "gray"
+        },
+        {
+          "range": [
+            40,
+            45
+          ],
+          "color": "red"
+        }
+      ],
+      "isInteger": "false"
+    },
+    "ebusd/700/Hc2ActualFlowTempDesired": {
+      "type": "gauge",
+      "value": 0.0,
+      "range": [
+        15,
+        45
+      ],
+      "title": "HK VL SOLL",
+      "color_ranges": [
+        {
+          "range": [
+            15,
+            40
+          ],
+          "color": "gray"
+        },
+        {
+          "range": [
+            40,
+            45
+          ],
+          "color": "red"
+        }
+      ],
+      "isInteger": "false"
+    },
+    "ebusd/700/Hc2FlowTemp": {
+      "type": "gauge",
+      "value": 0.0,
+      "range": [
+        15,
+        45
+      ],
+      "title": "HK VL IST",
+      "color_ranges": [
+        {
+          "range": [
+            15,
+            40
+          ],
+          "color": "gray"
+        },
+        {
+          "range": [
+            40,
+            45
+          ],
+          "color": "red"
+        }
+      ],
+      "isInteger": "false"
+    },
+    "ebusd/hmu/HoursHc": {
+      "type": "text",
+      "value": "N/A",
+      "title": "Heizstunden",
+      "data_type": "string"
+    },
+    "ebusd/700/Hc1HeatCurve": {
+      "type": "text",
+      "value": "N/A",
+      "title": "Heizkurve FBH",
+      "data_type": "float"
+    },
+    "ebusd/700/Hc2HeatCurve": {
+      "type": "text",
+      "value": "N/A",
+      "title": "Heizkurve HK",
+      "data_type": "float"
+    },
+    "ebusd/700/HwcStorageTemp": {
+      "type": "text",
+      "value": "N/A",
+      "title": "Warmwasserspeicher Temperatur",
+      "data_type": "float"
+    },
+    "ebusd/hmu/Status01": {
+      "type": "led",
+      "value": "off",
+      "title": "Wärmepumpe Status"
+    }
+  }
+}

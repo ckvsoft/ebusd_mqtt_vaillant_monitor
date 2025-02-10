@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Gauges Dashboard</title>
+    <link href="/favicon.ico" rel="icon" type="image/x-icon">
+    <script src="/js/plotly-latest.min.js"></script>
+    <script src="/js/socket.io.min.js"></script>
+    <style>
+        body {
+            background-color: #121212; /* Dunkler Hintergrund */
+            color: #ffffff; /* Heller Text */
+            font-family: Arial, sans-serif;
+        }
+
+        #info-container {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        #kompressor-info {
+            flex: 1; /* Kompressor-Bereich nimmt gleich viel Platz wie der Zusatzbereich ein */
+        }
+
+        #additional-info {
+            flex: 1; /* Zusatzinformation-Bereich nimmt gleich viel Platz wie der Kompressor-Bereich ein */
+        }
+
+        .kompressor-item {
+            border: 1px solid #444; /* Dunklerer Rand */
+            padding: 10px;
+            background-color: #2c2c2c; /* Dunklerer Hintergrund für die Kompressor-Items */
+            border-radius: 5px;
+            flex: 1;
+            color: #ffffff; /* Heller Text für die Kompressor-Items */
+        }
+
+        h2 {
+            color: #ffffff; /* Heller Text für Überschriften */
+            font-family: Arial, sans-serif;
+        }
+
+        #additional-info li {
+            margin: 5px 0;
+            color: #ddd; /* Hellgrauer Text für zusätzliche Infos */
+        }
+
+        .led-status {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .led-status.on {
+            background-color: green;
+        }
+
+        .led-status.off {
+            background-color: red;
+        }
+
+        .led-status.hwc {
+            background-color: orange;
+        }
+
+        .gauge-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+        }
+
+        .gauge {
+            flex: 1 1 350px;
+            max-width: 350px;
+        }
+
+        @media (min-width: 1600px) {
+            .gauge {
+                flex: 1 1 20%;
+                max-width: 20%;
+            }
+        }
+
+        @media (max-width: 1599px) and (min-width: 1200px) {
+            .gauge {
+                flex: 1 1 calc(25% - 20px);
+            }
+        }
+
+        @media (max-width: 1199px) and (min-width: 768px) {
+            .gauge {
+                flex: 1 1 calc(33.33% - 20px);
+            }
+        }
+
+        @media (max-width: 767px) {
+            .gauge {
+                flex: 1 1 calc(50% - 20px);
+            }
+        }
+
+        @media (max-width: 576px) {
+            .gauge {
+                flex: 1 1 100%;
+            }
+        }
+        .tooltip-icon {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            text-align: center;
+            line-height: 16px;
+            background-color: #ddd;
+            color: #000;
+            border-radius: 50%;
+            cursor: pointer;
+            margin-left: 5px;
+            font-weight: bold;
+        }
+
+        .tooltip-icon:hover {
+            background-color: #bbb;
+        }
+    </style>
+</head>
+<body>
+
+{% for led in leds %}
+<div class="led-status {{ led.value }}" id="led-status-{{ led.title }}">
+    <span>{{ led.title }}: {{ led.value }}</span>
+    <span class="timer" data-start-time="{{ led.start_time }}"></span> <!-- Startzeit für den Timer -->
+</div>
+{% endfor %}
+
+<h2>Live Gauges</h2>
+<div class="gauge-container" id="gauges-container">
+    {% for gauge in gauges %}
+    <div class="gauge"
+         data-color-ranges='{{ gauge.color_ranges | tojson }}'
+         data-isInteger="{{ gauge.isInteger }}"
+         data-max="{{ gauge.max_range }}"
+         data-min="{{ gauge.min_range }}"
+         data-value="{{ gauge.value }}"
+         id="{{ gauge.title }}">
+    </div>
+    {% endfor %}
+</div>
+
+<h2>Additional Information & Kompressor</h2>
+<div id="info-container">
+    <div id="additional-info">
+        <ul>
+            {% for text in texts %}
+            <li id="text-{{ loop.index0 }}">{{ text }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div id="kompressor-info">
+        <div class="kompressor-item">
+            <strong>Starts</strong><br>
+            Heute: <span id="counter-today">{{ counter.today }}</span>,
+            Gestern: <span id="counter-yesterday">{{ counter.yesterday }}</span>,
+            Gesamt: <span id="counter-total">{{ counter.total }}</span>
+        </div>
+        <div class="kompressor-item">
+            <strong>Laufzeit</strong><br>
+            Heute:
+            <span id="runtime-today">{{ runtime.today }}</span>
+            <span class="tooltip-icon" id="tooltip-today" title="{{ runtime.runs_today }}">?</span>,
+            Gestern:
+            <span id="runtime-yesterday">{{ runtime.yesterday }}</span>
+            <span class="tooltip-icon" id="tooltip-yesterday" title="{{ runtime.runs_yesterday }}">?</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    const socket = io();
+    let runtime_today = "{{ runtime.today }}";
+
+    // Funktion zur Aktualisierung der Gauges
+    function updateGauge(elementId, value, minRange = 0, maxRange = 100, title = "Titel", width = 330, height = 300, colorRanges = [], isInteger = false) {
+        const valueFormat = isInteger ? '' : '.2f';
+
+        const stepSize = Math.max(1, Math.round((maxRange - minRange) / 8));
+        const tickValues = [];
+        const tickLabels = [];
+
+        for (let i = minRange; i <= maxRange; i += stepSize) {
+            tickValues.push(i);
+            tickLabels.push(i.toString());
+        }
+
+        const steps = colorRanges.map(range => ({
+            range: range.range,
+            color: range.color
+        }));
+
+        const data = [
+            {
+                type: "indicator",
+                mode: "gauge+number",
+                value: value,
+                number: { valueformat: valueFormat },
+                title: { text: title, font: { size: 24 } },
+                gauge: {
+                    axis: { range: [minRange, maxRange], tickmode: 'array', tickvals: tickValues, ticktext: tickLabels },
+                    bar: { color: "blue" },
+                    steps: steps,
+                    shape: 'angular'
+                }
+            }
+        ];
+
+        const layout = {
+            paper_bgcolor: '#121212',
+            font: { color: 'white' },
+            width: width,
+            height: height,
+            margin: { l: 40, r: 40, t: 50, b: 20 }
+        };
+
+        Plotly.newPlot(elementId, data, layout);
+    }
+
+    let timers = {};
+    const leds = document.querySelectorAll('.led-status.on, .led-status.hwc');
+    console.log(leds);  // Prüft, ob LEDs mit diesen Klassen im DOM sind
+
+    leds.forEach(el => {
+        const title = el.id.replace('led-status-', '');  // LED-Titel aus der ID extrahieren
+        const value = el.querySelector('span').textContent.split(': ')[1]; // 'on', 'hwc', 'off'
+        const start_time = el.querySelector('.timer').getAttribute('data-start-time');
+        if (start_time) {
+            startTimer(el, value, title, parseFloat(start_time));  // Timer mit der gespeicherten Startzeit starten
+        }
+    });
+
+    function startTimer(el, value, title, startTime) {
+        console.log("Timer gestartet für " + title + " mit Startzeit: " + startTime);
+        timer_logic(el, value, title, startTime);
+        // Hier kannst du deine Timerlogik implementieren
+    }
+
+    document.querySelectorAll('.gauge').forEach(el => {
+        const value = el.getAttribute('data-value');
+        const isInteger = el.getAttribute('data-isInteger') === 'true';
+        const minRange = parseFloat(el.getAttribute('data-min'));
+        const maxRange = parseFloat(el.getAttribute('data-max'));
+        const title = el.id;
+        const colorRangesData = el.getAttribute('data-color-ranges');
+        let colorRanges = [];
+
+        if (colorRangesData) {
+            colorRanges = JSON.parse(colorRangesData);
+        }
+
+        updateGauge(el.id, value, minRange, maxRange, title, 330, 300, colorRanges, isInteger);
+    });
+
+    // WebSocket-Event für Gauge-Updates
+    socket.on('update_gauge', function(data) {
+        const { title, value, min_range, max_range, color_ranges, isInteger } = data;
+        const isIntegerBoolean = isInteger === 'true';
+        updateGauge(title, value, min_range, max_range, title, 330, 300, color_ranges, isIntegerBoolean);
+    });
+
+    // WebSocket-Event für Text-Updates
+    socket.on('update_text', function(data) {
+        const { title, value } = data;
+
+        // Sucht das entsprechende <li> Element und aktualisiert dessen Inhalt
+        let listItem = [...document.querySelectorAll('#additional-info li')]
+            .find(el => el.textContent.startsWith(title + ":"));
+
+        if (listItem) {
+            listItem.textContent = `${title}: ${value}`;
+        } else {
+            // Falls das Item nicht existiert, füge es als neues <li> hinzu
+            const ul = document.getElementById('additional-info');
+            const newListItem = document.createElement('li');
+            newListItem.textContent = `${title}: ${value}`;
+            ul.appendChild(newListItem);
+        }
+    });
+
+    function timer_logic(ledElement, value, title, start_time) {
+        // Timer-Logik
+        if (value === "on" || value === "hwc") {
+            if (start_time) {
+                timers[title] = start_time;
+                const timerElement = ledElement.querySelector('.timer');
+                if (!timerElement) {
+                    const newTimerElement = document.createElement('span');
+                    newTimerElement.classList.add('timer');
+                    ledElement.appendChild(newTimerElement);
+                }
+
+                // Timer jede Sekunde aktualisieren
+                setInterval(() => updateTimer(ledElement, timers[title]), 1000);
+            }
+        } else {
+            delete timers[title];
+            const timerElement = ledElement.querySelector('.timer');
+            if (timerElement) {
+                timerElement.remove();
+            }
+        }
+    }
+
+    function updateTimer(ledElement, startTime) {
+        const timerElement = ledElement.querySelector('.timer');
+        const runtimeElement = document.getElementById('runtime-today');
+
+        if (timerElement && runtimeElement && startTime) {
+            // Berechnung der verstrichenen Zeit
+            const elapsed = Math.floor((Date.now() / 1000) - startTime); // Zeit in Sekunden
+            const elapsedMinutes = Math.floor(elapsed / 60);
+            const elapsedSeconds = elapsed % 60;
+
+            // Anzeige des ursprünglichen Timers (z. B. 3m 45s)
+            timerElement.textContent = ` (${elapsedMinutes}m ${elapsedSeconds}s)`;
+
+            // Berechnung der neuen Laufzeit für runtime.today
+            const runtime = runtime_today;
+            const runtimeMatch = runtime.match(/(\d+)\s*Std\s*(\d+)\s*Min/);
+
+            let hours = 0, minutes = 0;
+            if (runtimeMatch) {
+                hours = parseInt(runtimeMatch[1], 10) || 0;
+                minutes = parseInt(runtimeMatch[2], 10) || 0;
+            }
+
+            // Addiere die verstrichenen Minuten zur aktuellen Laufzeit
+            minutes += elapsedMinutes;
+            hours += Math.floor(minutes / 60); // Überlauf in Stunden umwandeln
+            minutes = minutes % 60; // Rest-Minuten berechnen
+
+            // Aktualisiere die Anzeige von runtime.today
+            runtimeElement.textContent = `${hours} Std ${minutes} Min`;
+        }
+    }
+
+    socket.on('update_led', function(data) {
+        const { title, value, start_time } = data;
+        const ledElement = document.getElementById('led-status-' + title);
+
+        if (ledElement) {
+            ledElement.classList.remove('on', 'off', 'hwc');
+
+            // Status setzen
+            if (value === "on") {
+                ledElement.classList.add('on');
+                ledElement.querySelector('span').textContent = `${title}: on`;
+            } else if (value === "hwc") {
+                ledElement.classList.add('hwc');
+                ledElement.querySelector('span').textContent = `${title}: hwc`;
+            } else {
+                ledElement.classList.add('off');
+                ledElement.querySelector('span').textContent = `${title}: off`;
+            }
+            timer_logic(ledElement,value, title, start_time);
+        }
+    });
+
+    socket.on('update_counter', function(data) {
+        document.getElementById('counter-today').textContent = data.today;
+        document.getElementById('counter-yesterday').textContent = data.yesterday;
+        document.getElementById('counter-total').textContent = data.total;
+    });
+
+    socket.on('update_runtime', function(data) {
+        // Aktualisieren der Werte für heute und gestern
+        document.getElementById('runtime-today').textContent = data.today;
+        document.getElementById('runtime-yesterday').textContent = data.yesterday;
+        runtime_today = data.today;
+
+        let todayRuns = data.runs_today ? data.runs_today : '';
+        let yesterdayRuns = data.runs_yesterday ? data.runs_yesterday : '';
+
+        // Tooltip aktualisieren
+        document.getElementById('tooltip-today').setAttribute('title', todayRuns);
+        document.getElementById('tooltip-yesterday').setAttribute('title', yesterdayRuns);
+    });
+</script>
+</body>
+</html>

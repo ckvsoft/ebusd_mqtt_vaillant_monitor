@@ -199,7 +199,6 @@ def load_config(config_file="config.json", default_file="default_config.json"):
         return default
 
     return merge_dicts(default_config, user_config)
-cleanup
 
 def load_values(filename="data.json"):
     """Lädt gespeicherte Werte aus einer JSON-Datei."""

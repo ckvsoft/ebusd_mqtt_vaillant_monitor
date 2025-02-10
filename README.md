@@ -1,14 +1,16 @@
-
 ![image.png](image.png)
 
 # Vaillant EEBus MQTT Dashboard
 
-Dieses Projekt empfängt EEBus-Daten von Vaillant-Heizsystemen, die über das MQTT-Protokoll gesendet werden. Diese Daten werden verarbeitet und in Echtzeit auf einer lokalen Webseite angezeigt. Die Webseite nutzt interaktive Gauges zur Visualisierung von Systemparametern wie Temperatur, Heizleistung und Energieverbrauch.
+Dieses Projekt empfängt EEBus-Daten von Vaillant-Heizsystemen, die über das MQTT-Protokoll gesendet werden. Diese Daten
+werden verarbeitet und in Echtzeit auf einer lokalen Webseite angezeigt. Die Webseite nutzt interaktive Gauges zur
+Visualisierung von Systemparametern wie Temperatur, Heizleistung und Energieverbrauch.
 
 ## Funktionen
 
 - **EEBus-Daten via MQTT:** Die App empfängt Echtzeitdaten von Vaillant-Geräten über MQTT.
-- **Datenverarbeitung:** Verarbeitet die empfangenen EEBus-Daten, um wichtige Parameter wie Temperatur, Heizleistung und Energieverbrauch darzustellen.
+- **Datenverarbeitung:** Verarbeitet die empfangenen EEBus-Daten, um wichtige Parameter wie Temperatur, Heizleistung und
+  Energieverbrauch darzustellen.
 - **Echtzeit-Gauges:** Zeigt die wichtigsten Systemdaten in interaktiven Gauges auf einer lokalen Webseite an.
 - **Webbasierte Benutzeroberfläche:** Eine Flask-basierte Webseite zeigt die Daten an und wird in Echtzeit aktualisiert.
 
@@ -31,7 +33,8 @@ Stelle sicher, dass du die folgenden Programme installiert hast:
 
 ### Schritt 1: Erstelle eine virtuelle Umgebung
 
-Es wird empfohlen, eine virtuelle Umgebung zu verwenden, um die Abhängigkeiten isoliert zu installieren. Navigiere in das Verzeichnis des Projekts und führe folgenden Befehl aus:
+Es wird empfohlen, eine virtuelle Umgebung zu verwenden, um die Abhängigkeiten isoliert zu installieren. Navigiere in
+das Verzeichnis des Projekts und führe folgenden Befehl aus:
 
 ```bash
 python -m venv venv
@@ -72,7 +75,8 @@ Flask-SocketIO
 
 ### Schritt 4: Konfiguration
 
-Die MQTT-Verbindungsdetails werden in einer Konfigurationsdatei (`config.json`) gespeichert. Wenn diese Datei nicht vorhanden ist, wird die Standardkonfiguration aus `default_config.json` verwendet.
+Die MQTT-Verbindungsdetails werden in einer Konfigurationsdatei (`config.json`) gespeichert. Wenn diese Datei nicht
+vorhanden ist, wird die Standardkonfiguration aus `default_config.json` verwendet.
 
 **Beispiel einer `config.json`:**
 
@@ -354,13 +358,17 @@ Nachdem du die Abhängigkeiten installiert und die Konfiguration angepasst hast,
 ```bash
 python main.py
 ```
+
 Die Webanwendung wird nun auf `http://127.0.0.1:5000` (oder der konfigurierten IP) laufen.
+
 ### Empfehlung: Anwendung als Service starten
+
 #### Um die Anwendung dauerhaft im Hintergrund laufen zu lassen, empfiehlt es sich, sie als Systemdienst (z. B. mit systemd unter Linux) zu starten.
 
 ## Webinterface
 
-Die Benutzeroberfläche zeigt die wichtigsten Parameter des Vaillant-Systems in Form von interaktiven Gauges an, darunter:
+Die Benutzeroberfläche zeigt die wichtigsten Parameter des Vaillant-Systems in Form von interaktiven Gauges an,
+darunter:
 
 - **Temperaturanzeigen:** Raum-, Rücklauf- und Vorlauftemperatur.
 - **Heizleistung:** Aktuelle Heizleistung des Systems.
@@ -383,4 +391,5 @@ Dieses Projekt ist unter der MIT-Lizenz lizenziert. Siehe [LICENSE](LICENSE) fü
 
 ---
 
-**Hinweis:** Dies ist ein Beispiel für die Verwendung von MQTT und EEBus-Daten mit Vaillant-Geräten. Anpassungen an deinem System, Broker oder den Datenparametern sind möglicherweise erforderlich.
+**Hinweis:** Dies ist ein Beispiel für die Verwendung von MQTT und EEBus-Daten mit Vaillant-Geräten. Anpassungen an
+deinem System, Broker oder den Datenparametern sind möglicherweise erforderlich.

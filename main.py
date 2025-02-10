@@ -158,12 +158,14 @@ def on_message(client, userdata, msg):
         print(f"Fehler beim Verarbeiten von {topic}: {payload} -> {e}")
         print(runtime["runs"])
 
+
 def save_values(data, filename="data.json"):
     try:
         with open(filename, "w") as file:
             json.dump(data, file, indent=4)
     except Exception as e:
         print(f"Fehler beim Speichern: {e}")
+
 
 def load_config(config_file="config.json", default_file="default_config.json"):
     """Lädt die Konfiguration und ergänzt fehlende Werte mit Standardwerten."""
@@ -197,6 +199,7 @@ def load_config(config_file="config.json", default_file="default_config.json"):
         return default
 
     return merge_dicts(default_config, user_config)
+cleanup
 
 def load_values(filename="data.json"):
     """Lädt gespeicherte Werte aus einer JSON-Datei."""
@@ -255,6 +258,7 @@ def reset_counter():
         # Sende aktualisierte Werte an die Webseite
         socketio.emit('update_counter', counter)
         socketio.emit('update_runtime', rt)
+
 
 @app.route('/update_log')
 def update_log():
@@ -336,7 +340,6 @@ def format_runs(runs):
             formatted_runs.append(f'{key}: {minutes} Min {seconds} Sek')
 
     return ', '.join(formatted_runs)
-
 
 
 config = load_config()

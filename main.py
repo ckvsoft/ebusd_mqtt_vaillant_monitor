@@ -4,7 +4,7 @@ eventlet.monkey_patch()  # Muss zuerst kommen!
 
 import threading
 import paho.mqtt.client as mqtt
-from flask import Flask, render_template, request, send_from_directory
+from flask import Flask, render_template, send_from_directory
 from flask_socketio import SocketIO
 from datetime import datetime, timedelta
 import time
@@ -21,14 +21,14 @@ socketio = SocketIO(app)
 
 
 # MQTT Callback-Funktionen
-def on_connect(client, userdata, flags, reasonCode, properties):
-    print(f"Verbunden mit Code: {reasonCode}")
+def on_connect(client, _userdata, _flags, reason_code, _properties):
+    print(f"Verbunden mit Code: {reason_code}")
     for topic in mqtt_values:
         client.subscribe(topic)
         print(f"Abonniert: {topic}")
 
 
-def on_message(client, userdata, msg):
+def on_message(_client, _userdata, msg):
     global water
 
     topic = msg.topic
@@ -71,13 +71,13 @@ def on_message(client, userdata, msg):
 
                 if value != new_value:
                     topic_config["value"] = new_value
-                    isInteger = topic_config.get("isInteger")
+                    is_integer = topic_config.get("isInteger")
                     min_range, max_range = topic_config.get("range", (0, 100))
                     color_ranges = topic_config.get('color_ranges', [])
                     socketio.emit('update_gauge', {
                         'title': title, 'value': new_value,
                         'min_range': min_range, 'max_range': max_range,
-                        'isInteger': isInteger,
+                        'isInteger': is_integer,
                         'color_ranges': color_ranges
                     })
                     print(f"Update Gauge Topic: {topic}")
@@ -231,18 +231,6 @@ def reset_counter():
         runtime["runs"]["yesterday"] = runtime["runs"]["today"]
         runtime["runs"]["today"] = {}
 
-        # Optional: Durchschnittswerte berechnen
-        avg_runtime_yesterday = (
-            runtime["yesterday"] / counter["yesterday"]
-            if counter["yesterday"] > 0 else 0.0
-        )
-
-        # Durchschnittliche Run-Dauer berechnen
-        avg_run_time_yesterday = {
-            k: (v / counter["yesterday"] if counter["yesterday"] > 0 else 0.0)
-            for k, v in runtime["runs"]["yesterday"].items()
-        }
-
         # Speichere die Werte
         save_values(counter, "data.json")
         save_values(runtime, "runtime.json")
@@ -261,7 +249,7 @@ def reset_counter():
 
 @app.route('/update_log')
 def update_log():
-    hide_debug = request.args.get('hide_debug', 'false').lower() == 'true'
+    # hide_debug = request.args.get('hide_debug', 'false').lower() == 'true'
     logs = ["Log 1: Something happened", "Log 2: Another event"]
     return render_template('logs.html', logs=logs)
 
@@ -285,7 +273,7 @@ def index():
         color_ranges = data.get("color_ranges", [])
 
         if data["type"] == "gauge":
-            isInteger = data["isInteger"]
+            is_integer = data["isInteger"]
             min_range, max_range = data["range"]
             gauges.append({
                 "title": title,
@@ -293,7 +281,7 @@ def index():
                 "min_range": min_range,
                 "max_range": max_range,
                 "color_ranges": color_ranges,
-                "isInteger": isInteger
+                "isInteger": is_integer
             })
         elif data["type"] == "text":
             texts.append(f"{title}: {value}")
@@ -324,7 +312,7 @@ def format_runs(runs):
     formatted_runs = []
     for key, value in runs.items():
         if isinstance(value, str) and value.startswith("hwc:"):
-            # Wenn der Wert mit "hwc:" beginnt, extrahiere die Zeit und füge "HWC" hinzu
+            # Wenn der Wert mit hwc: beginnt, extrahiere die Zeit und füge HWC hinzu
             try:
                 elapsed_time = float(value.split(":")[1].strip())
                 minutes = int(elapsed_time * 60)
@@ -349,9 +337,6 @@ mqtt_client.on_message = on_message
 if mqtt_config.get("username", None) is not None:
     mqtt_client.username_pw_set(mqtt_config.get("username"), mqtt_config.get("password", ""))
 mqtt_client.connect(mqtt_config.get("host", "localhost"), mqtt_config.get("port", 1883), 60)
-
-mqtt_client.username_pw_set("chris", "Denise99")
-mqtt_client.connect("ns2.ckvsoft.at", 11883, 60)
 
 if __name__ == '__main__':
     water = False

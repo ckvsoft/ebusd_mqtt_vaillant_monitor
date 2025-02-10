@@ -96,8 +96,8 @@ def on_message(_client, _userdata, msg):
                     if status in ["on", "hwc"] and value == "off":
                         counter["today"] += 1
                         counter["total"] += 1
-                        # if status == "hwc":
-                        water = True
+                        if status == "hwc":
+                            water = True
                         if topic_config.get("start_time"):
                             start_time = float(topic_config["start_time"])
                             now = datetime.now()

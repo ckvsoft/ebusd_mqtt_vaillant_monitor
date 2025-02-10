@@ -165,24 +165,38 @@ def save_values(data, filename="data.json"):
     except Exception as e:
         print(f"Fehler beim Speichern: {e}")
 
-def load_config(filename="config.json", default_filename="default_config.json"):
-    """Lädt die Konfigurationsdaten aus einer JSON-Datei. Wenn die Datei nicht gefunden wird, werden Standardwerte aus einer Default-Datei geladen."""
+def load_config(config_file="config.json", default_file="default_config.json"):
+    """Lädt die Konfiguration und ergänzt fehlende Werte mit Standardwerten."""
     try:
-        # Versuche, die angegebene Datei zu laden
-        with open(filename, "r") as file:
-            return json.load(file)
+        with open(default_file, "r") as file:
+            default_config = json.load(file)
     except FileNotFoundError:
-        print(f"Konfigurationsdatei '{filename}' nicht gefunden. Standardwerte aus '{default_filename}' werden verwendet.")
-        # Wenn die Datei nicht gefunden wurde, versuche, die Standarddatei zu laden
-        if os.path.exists(default_filename):
-            with open(default_filename, "r") as default_file:
-                return json.load(default_file)
-        else:
-            print(f"Auch die Standarddatei '{default_filename}' wurde nicht gefunden.")
-            return {}
+        print(f"Warnung: Standardkonfigurationsdatei '{default_file}' nicht gefunden.")
+        default_config = {}
     except Exception as e:
-        print(f"Fehler beim Laden der Konfiguration: {e}")
-        return {}
+        print(f"Fehler beim Laden der Standardkonfiguration: {e}")
+        default_config = {}
+
+    try:
+        with open(config_file, "r") as file:
+            user_config = json.load(file)
+    except FileNotFoundError:
+        print(f"Info: Konfigurationsdatei '{config_file}' nicht gefunden. Standardwerte werden verwendet.")
+        user_config = {}
+    except Exception as e:
+        print(f"Fehler beim Laden der Konfigurationsdatei: {e}")
+        user_config = {}
+
+    # Rekursive Zusammenführung der Konfigurationen
+    def merge_dicts(default, override):
+        for key, value in override.items():
+            if isinstance(value, dict) and isinstance(default.get(key), dict):
+                default[key] = merge_dicts(default[key], value)
+            else:
+                default[key] = value
+        return default
+
+    return merge_dicts(default_config, user_config)
 
 def load_values(filename="data.json"):
     """Lädt gespeicherte Werte aus einer JSON-Datei."""

@@ -125,6 +125,42 @@
         .tooltip-icon:hover {
             background-color: #bbb;
         }
+
+        .tooltip-container {
+          position: relative;
+          display: inline-block;
+          cursor: pointer;
+        }
+
+        .tooltip-container .tooltip-text {
+          visibility: hidden;
+          width: 400px;
+          background-color: black;
+          color: #fff;
+          text-align: left;
+          padding: 8px;
+          border-radius: 5px;
+          position: absolute;
+          z-index: 1;
+          bottom: 125%;
+          left: 50%;
+          transform: translateX(-50%);
+          opacity: 0;
+          transition: opacity 0.3s;
+          font-size: 14px;
+        }
+
+        .tooltip-container:hover .tooltip-text {
+          visibility: visible;
+          opacity: 1;
+        }
+
+        .tooltip-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); /* Flexible Spalten */
+            gap: 5px;
+            white-space: normal; /* Damit die Inhalte umbrechen */
+        }
     </style>
 </head>
 <body>
@@ -171,10 +207,14 @@
             <strong>Laufzeit</strong><br>
             Heute:
             <span id="runtime-today">{{ runtime.today }}</span>
-            <span class="tooltip-icon" id="tooltip-today" title="{{ runtime.runs_today }}">?</span>,
+            <span class="tooltip-container tooltip-icon" id="tooltip-today">?
+                <div class="tooltip-text" id="tooltip-content-today"></div>
+            </span>
             Gestern:
             <span id="runtime-yesterday">{{ runtime.yesterday }}</span>
-            <span class="tooltip-icon" id="tooltip-yesterday" title="{{ runtime.runs_yesterday }}">?</span>
+            <span class="tooltip-container tooltip-icon" id="tooltip-yesterday">?
+                <div class="tooltip-text" id="tooltip-content-yesterday"></div>
+            </span>
         </div>
     </div>
 </div>
@@ -374,19 +414,71 @@
         document.getElementById('counter-total').textContent = data.total;
     });
 
+    function formatRuns(runs) {
+        if (!runs) {
+            return "Keine Daten";
+        }
+
+        let runsArray = runs.split(", ");
+        let columns = 3;
+        let rows = Math.ceil(runsArray.length / columns);
+        let tooltipHTML = "";
+
+        for (let i = 0; i < rows; i++) {
+            tooltipHTML += "<div style='display: flex;'>";
+            for (let j = 0; j < columns; j++) {
+                let index = i + j * rows;
+                tooltipHTML += `<div style="flex: 1; padding: 2px;">${runsArray[index] || ""}</div>`;
+            }
+            tooltipHTML += "</div>";
+        }
+
+        return tooltipHTML;
+    }
+
+    // Dann im DOMContentLoaded Event und beim Socket-Update verwenden
+    document.addEventListener("DOMContentLoaded", function() {
+        let todayRuns = '{{ runtime.runs_today }}'; // Kommata-getrennte Werte
+        let yesterdayRuns = '{{ runtime.runs_yesterday }}'; // Kommata-getrennte Werte
+
+        // Setze die formatierten Werte in die Tooltips ein
+        document.getElementById('tooltip-content-today').innerHTML = formatRuns(todayRuns);
+        document.getElementById('tooltip-content-yesterday').innerHTML = formatRuns(yesterdayRuns);
+    });
+
     socket.on('update_runtime', function(data) {
-        // Aktualisieren der Werte für heute und gestern
         document.getElementById('runtime-today').textContent = data.today;
         document.getElementById('runtime-yesterday').textContent = data.yesterday;
         runtime_today = data.today;
 
-        let todayRuns = data.runs_today ? data.runs_today : '';
-        let yesterdayRuns = data.runs_yesterday ? data.runs_yesterday : '';
-
-        // Tooltip aktualisieren
-        document.getElementById('tooltip-today').setAttribute('title', todayRuns);
-        document.getElementById('tooltip-yesterday').setAttribute('title', yesterdayRuns);
+        // Tooltips aktualisieren
+        updateTooltipContent("tooltip-content-today", data.runs_today);
+        updateTooltipContent("tooltip-content-yesterday", data.runs_yesterday);
     });
+
+    // Funktion zur Formatierung des Tooltip-Contents in 3 Spalten
+    function updateTooltipContent(elementId, runs) {
+        if (!runs) {
+            document.getElementById(elementId).innerHTML = "Keine Daten";
+            return;
+        }
+
+        let runsArray = runs.split(", ");
+        let columns = 3;
+        let rows = Math.ceil(runsArray.length / columns);
+        let tooltipHTML = "";
+
+        for (let i = 0; i < rows; i++) {
+            tooltipHTML += "<div style='display: flex;'>";
+            for (let j = 0; j < columns; j++) {
+                let index = i + j * rows;
+                tooltipHTML += `<div style="flex: 1; padding: 2px;">${runsArray[index] || ""}</div>`;
+            }
+            tooltipHTML += "</div>";
+        }
+
+        document.getElementById(elementId).innerHTML = tooltipHTML;
+    }
 </script>
 </body>
 </html>

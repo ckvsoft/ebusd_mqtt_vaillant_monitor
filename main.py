@@ -29,7 +29,6 @@ def on_connect(client, _userdata, _flags, reason_code, _properties):
 
 
 def on_message(_client, _userdata, msg):
-    global water
 
     topic = msg.topic
     payload = msg.payload.decode()
@@ -93,38 +92,31 @@ def on_message(_client, _userdata, msg):
                     print(f"Topic {topic}, prev value: {value}, curr value {status}.")
                     topic_config["is_processing"] = True  # Sperre für Verarbeitung
                     topic_config["value"] = status
-                    if status in ["on", "hwc"] and value == "off":
-                        counter["today"] += 1
-                        counter["total"] += 1
-                        if status == "hwc":
-                            water = True
+
+                    # Falls ein direkter Wechsel zwischen "hwc" und "on" passiert
+                    if (value == "hwc" and status == "on") or (value == "on" and status == "hwc"):
                         if topic_config.get("start_time"):
                             start_time = float(topic_config["start_time"])
                             now = datetime.now()
-                            elapsed = (now.timestamp() - start_time) / 3600  # in Stunden
-                            cnt = counter.get("today", 0)
-                            if cnt == 0 and elapsed > 0.0:
-                                runtime["yesterday"] += elapsed
-                            else:
-                                runtime["today"] += elapsed
-                            runtime["total"] += elapsed
+                            elapsed = (now.timestamp() - start_time) / 3600  # Stunden
+                            update_runtime(elapsed)
 
+                            runtime["total"] += elapsed
+                            topic_config["start_time"] = ""
+
+                    if status in ["on", "hwc"]:
+                        counter["today"] += 1
+                        counter["total"] += 1
+                        if status == "hwc":
+                            hwc["status"] = True
                         topic_config["start_time"] = str(datetime.now().timestamp())
+
                     elif status not in ["on", "hwc"]:
                         if topic_config.get("start_time"):
                             start_time = float(topic_config["start_time"])
                             now = datetime.now()
-                            elapsed = (now.timestamp() - start_time) / 3600  # in Stunden
-                            cnt = counter.get("today", 0)
-                            if cnt == 0 and elapsed > 0.0:
-                                runtime["yesterday"] += elapsed
-                                run_id = str(counter.get("yesterday", 1))
-                                runtime["runs"]["yesterday"][run_id] = elapsed
-                            else:
-                                runtime["today"] += elapsed
-                                run_id = str(cnt)
-                                runtime["runs"]["today"][run_id] = f"hwc: {elapsed}" if water else elapsed
-                                water = False
+                            elapsed = (now.timestamp() - start_time) / 3600
+                            update_runtime(elapsed)
 
                             runtime["total"] += elapsed
                             topic_config["start_time"] = ""
@@ -158,6 +150,17 @@ def on_message(_client, _userdata, msg):
         print(f"Fehler beim Verarbeiten von {topic}: {payload} -> {e}")
         print(runtime["runs"])
 
+def update_runtime(elapsed):
+    cnt = counter.get("today", 0)
+    if cnt == 0 and elapsed > 0.0:
+        runtime["yesterday"] += elapsed
+        run_id = str(counter.get("yesterday", 1))
+        runtime["runs"]["yesterday"][run_id] = elapsed
+    else:
+        runtime["today"] += elapsed
+        run_id = str(cnt)
+        runtime["runs"]["today"][run_id] = f"hwc: {elapsed}" if hwc["status"] else elapsed
+        hwc["status"] = False
 
 def save_values(data, filename="data.json"):
     try:
@@ -210,7 +213,7 @@ def load_values(filename="data.json"):
         return {}
     except Exception as e:
         print(f"Fehler beim Laden der Werte aus {filename}: {e}")
-        return {}
+        return None
 
 
 def reset_counter():
@@ -317,14 +320,14 @@ def format_runs(runs):
                 elapsed_time = float(value.split(":")[1].strip())
                 minutes = int(elapsed_time * 60)
                 seconds = int((elapsed_time * 3600) % 60)
-                formatted_runs.append(f'{key}: HWC {minutes} Min {seconds} Sek')
+                formatted_runs.append(f'{key}: HWC {minutes} Min {seconds:02d} Sek')
             except ValueError:
                 formatted_runs.append(f'{key}: Ungültiger Wert')
         else:
             # Normaler Fall, wenn der Wert numerisch ist
             minutes = int(value * 60)
             seconds = int((value * 3600) % 60)
-            formatted_runs.append(f'{key}: {minutes} Min {seconds} Sek')
+            formatted_runs.append(f'{key}: {minutes} Min {seconds:02d} Sek')
 
     return ', '.join(formatted_runs)
 
@@ -339,12 +342,12 @@ if mqtt_config.get("username", None) is not None:
 mqtt_client.connect(mqtt_config.get("host", "localhost"), mqtt_config.get("port", 1883), 60)
 
 if __name__ == '__main__':
-    water = False
+    hwc = {"status": False}
 
     # Zähler für "on" und "hwc"
     runtime = load_values("runtime.json")
 
-    if runtime is None:
+    if runtime is None or len(runtime) == 0:
         runtime = {
             "today": 0.0,
             "yesterday": 0.0,

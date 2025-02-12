@@ -364,8 +364,7 @@
             const elapsedMinutes = Math.floor(elapsed / 60);
             const elapsedSeconds = elapsed % 60;
 
-            // Anzeige des ursprünglichen Timers (z. B. 3m 45s)
-            timerElement.textContent = ` (${elapsedMinutes}m ${elapsedSeconds}s)`;
+            timerElement.textContent = ` (${elapsedMinutes}m ${String(elapsedSeconds).padStart(2, '0')}s)`;
 
             // Berechnung der neuen Laufzeit für runtime.today
             const runtime = runtime_today;

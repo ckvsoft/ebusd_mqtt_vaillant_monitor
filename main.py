@@ -102,16 +102,22 @@ def on_message(_client, _userdata, msg):
                             update_runtime(elapsed)
 
                             runtime["total"] += elapsed
+                            hwc["switch"] = True
+                            hwc["sub"] += 1
                             topic_config["start_time"] = ""
 
                     if status in ["on", "hwc"]:
-                        counter["today"] += 1
-                        counter["total"] += 1
+                        # Zähler nicht hochzählen, wenn ein direkter wechsel war. Das zählt nicht als Kompressor start
+                        if not hwc["switch"]:
+                            counter["today"] += 1
+                            counter["total"] += 1
+
                         if status == "hwc":
                             hwc["status"] = True
                         topic_config["start_time"] = str(datetime.now().timestamp())
 
                     elif status not in ["on", "hwc"]:
+                        hwc["switch"] = False
                         if topic_config.get("start_time"):
                             start_time = float(topic_config["start_time"])
                             now = datetime.now()
@@ -120,6 +126,8 @@ def on_message(_client, _userdata, msg):
 
                             runtime["total"] += elapsed
                             topic_config["start_time"] = ""
+                            hwc["sub"] = 0
+                            hwc["switch"] = False
 
                     socketio.emit('update_led', {
                         'title': title,
@@ -155,12 +163,19 @@ def update_runtime(elapsed):
     if cnt == 0 and elapsed > 0.0:
         runtime["yesterday"] += elapsed
         run_id = str(counter.get("yesterday", 1))
-        runtime["runs"]["yesterday"][run_id] = elapsed
+        sub_id = hwc.get("sub", 0)
+        if sub_id > 0:
+            run_id = f"{run_id}.{sub_id}"
+        runtime["runs"]["yesterday"][run_id] = f"hwc: {elapsed}" if hwc["status"] else elapsed
     else:
         runtime["today"] += elapsed
         run_id = str(cnt)
+        sub_id = hwc.get("sub", 0)
+        if sub_id > 0:
+            run_id = f"{run_id}.{sub_id}"
         runtime["runs"]["today"][run_id] = f"hwc: {elapsed}" if hwc["status"] else elapsed
-        hwc["status"] = False
+
+    hwc["status"] = False
 
 def save_values(data, filename="data.json"):
     try:
@@ -342,7 +357,7 @@ if mqtt_config.get("username", None) is not None:
 mqtt_client.connect(mqtt_config.get("host", "localhost"), mqtt_config.get("port", 1883), 60)
 
 if __name__ == '__main__':
-    hwc = {"status": False}
+    hwc = {"status": False, "switch": False, "sub": 0}
 
     # Zähler für "on" und "hwc"
     runtime = load_values("runtime.json")

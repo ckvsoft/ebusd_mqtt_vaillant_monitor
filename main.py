@@ -12,21 +12,20 @@ import json
 import os
 import sys
 
-sys.stdout.reconfigure(line_buffering=True)
-sys.stderr.reconfigure(line_buffering=True)
+from core.log import Logger
 
 # Flask App initialisieren
 app = Flask(__name__, static_url_path='/js', static_folder='js', template_folder='templates')
 socketio = SocketIO(app)
-
+# Logger initialisieren
+log = Logger(log_filename="vaillant2.log").get_logger()
 
 # MQTT Callback-Funktionen
 def on_connect(client, _userdata, _flags, reason_code, _properties):
-    print(f"Verbunden mit Code: {reason_code}")
+    log.info(f"Verbunden mit Code: {reason_code}")
     for topic in mqtt_values:
         client.subscribe(topic)
-        print(f"Abonniert: {topic}")
-
+        log.info(f"Abonniert: {topic}")
 
 def on_message(_client, _userdata, msg):
 
@@ -60,7 +59,7 @@ def on_message(_client, _userdata, msg):
                 if value != formatted_value:
                     topic_config["value"] = formatted_value
                     socketio.emit('update_text', {'title': title, 'value': formatted_value})
-                    print(f"Update Text Topic: {topic}")
+                    log.debug(f"Update Text Topic: {topic} value: {formatted_value}")
 
             elif topic_type == "gauge":
                 try:
@@ -79,23 +78,24 @@ def on_message(_client, _userdata, msg):
                         'isInteger': is_integer,
                         'color_ranges': color_ranges
                     })
-                    print(f"Update Gauge Topic: {topic}")
+                    log.debug(f"Update Gauge Topic: {topic} value: {new_value}")
 
             elif topic_type == "led":
                 status = payload.split(";")[-1].strip()
 
                 if topic_config.get("is_processing", False):
-                    print(f"Verarbeitung für Topic {topic} läuft bereits.")
+                    log.info(f"Verarbeitung für Topic {topic} läuft bereits.")
                     return
 
                 if value != status:
-                    print(f"Topic {topic}, prev value: {value}, curr value {status}.")
+                    log.debug(f"Topic {topic}, prev value: {value}, curr value {status}.")
                     topic_config["is_processing"] = True  # Sperre für Verarbeitung
                     topic_config["value"] = status
 
                     # Falls ein direkter Wechsel zwischen "hwc" und "on" passiert
                     if (value == "hwc" and status == "on") or (value == "on" and status == "hwc"):
                         if topic_config.get("start_time"):
+                            log.info(f"switch from {value} to {status}")
                             start_time = float(topic_config["start_time"])
                             now = datetime.now()
                             elapsed = (now.timestamp() - start_time) / 3600  # Stunden
@@ -111,6 +111,7 @@ def on_message(_client, _userdata, msg):
                         if not hwc["switch"]:
                             counter["today"] += 1
                             counter["total"] += 1
+                            log.info(f"start run {counter["today"]} - {status}")
 
                         if status == "hwc":
                             hwc["status"] = True
@@ -128,6 +129,8 @@ def on_message(_client, _userdata, msg):
                             topic_config["start_time"] = ""
                             hwc["sub"] = 0
                             hwc["switch"] = False
+                            log.info(f"stop run {counter["today"]} - {status} - elapsed: {elapsed}")
+
 
                     socketio.emit('update_led', {
                         'title': title,
@@ -146,17 +149,17 @@ def on_message(_client, _userdata, msg):
 
                     save_values(counter, "data.json")
                     save_values(runtime, "runtime.json")
-                    print(f"Update LED Topic: {topic} status: {status}")
+                    log.debug(f"Update LED Topic: {topic} status: {status}")
                     topic_config["is_processing"] = False  # Verarbeitung abgeschlossen
 
             else:
-                print(f"Unbekanntes Topic: {topic}")
+                log.warning(f"Unbekanntes Topic: {topic}")
         else:
-            print(f"Kein gültiger Eintrag für das Topic: {topic}")
+            log.warning(f"Kein gültiger Eintrag für das Topic: {topic}")
 
     except Exception as e:
-        print(f"Fehler beim Verarbeiten von {topic}: {payload} -> {e}")
-        print(runtime["runs"])
+        log.error(f"Fehler beim Verarbeiten von {topic}: {payload} -> {e}")
+        log.error(runtime["runs"])
 
 def update_runtime(elapsed):
     cnt = counter.get("today", 0)
@@ -182,7 +185,7 @@ def save_values(data, filename="data.json"):
         with open(filename, "w") as file:
             json.dump(data, file, indent=4)
     except Exception as e:
-        print(f"Fehler beim Speichern: {e}")
+        log.error(f"Fehler beim Speichern: {e}")
 
 
 def load_config(config_file="config.json", default_file="default_config.json"):
@@ -191,20 +194,20 @@ def load_config(config_file="config.json", default_file="default_config.json"):
         with open(default_file, "r") as file:
             default_config = json.load(file)
     except FileNotFoundError:
-        print(f"Warnung: Standardkonfigurationsdatei '{default_file}' nicht gefunden.")
+        log.warning(f"Warnung: Standardkonfigurationsdatei '{default_file}' nicht gefunden.")
         default_config = {}
     except Exception as e:
-        print(f"Fehler beim Laden der Standardkonfiguration: {e}")
+        log.error(f"Fehler beim Laden der Standardkonfiguration: {e}")
         default_config = {}
 
     try:
         with open(config_file, "r") as file:
             user_config = json.load(file)
     except FileNotFoundError:
-        print(f"Info: Konfigurationsdatei '{config_file}' nicht gefunden. Standardwerte werden verwendet.")
+        log.info(f"Info: Konfigurationsdatei '{config_file}' nicht gefunden. Standardwerte werden verwendet.")
         user_config = {}
     except Exception as e:
-        print(f"Fehler beim Laden der Konfigurationsdatei: {e}")
+        log.error(f"Fehler beim Laden der Konfigurationsdatei: {e}")
         user_config = {}
 
     # Rekursive Zusammenführung der Konfigurationen
@@ -224,10 +227,10 @@ def load_values(filename="data.json"):
         with open(filename, "r") as file:
             return json.load(file)
     except FileNotFoundError:
-        print(f"Datei {filename} nicht gefunden. Standardwerte werden verwendet.")
+        log.warning(f"Datei {filename} nicht gefunden. Standardwerte werden verwendet.")
         return {}
     except Exception as e:
-        print(f"Fehler beim Laden der Werte aus {filename}: {e}")
+        log.error(f"Fehler beim Laden der Werte aus {filename}: {e}")
         return None
 
 

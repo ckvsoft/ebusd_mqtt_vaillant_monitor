@@ -86,6 +86,11 @@ class Logger:
         # Handler hinzufügen
         self.logger.addHandler(file_handler)
         self.logger.addHandler(console_handler)
+        self.log_file = log_file  # Speichern des Logfile-Pfads
 
     def get_logger(self):
         return self.logger
+
+    def get_log_file(self):
+        """Gibt den Pfad zum Logfile zurück"""
+        return self.log_file

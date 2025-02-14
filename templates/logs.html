@@ -1,2 +1,44 @@
-<!-- logs.html -->
-<h1>{{ logs }}</h1>
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Logfile</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        #log {
+            white-space: pre-wrap;  /* Umbrüche in Log-Zeilen beibehalten */
+            background-color: #282c34;
+            color: white;
+            padding: 10px;
+            height: 500px;
+            overflow-y: scroll; /* Scrollbar aktivieren */
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <h1>Live Logfile</h1>
+    <div id="log"></div>
+
+    <script>
+        const logDiv = document.getElementById('log');
+
+        const eventSource = new EventSource('/update_log');
+        eventSource.onmessage = function(event) {
+            // Füge die neue Log-Zeile hinzu und scrolle nach unten
+            logDiv.innerHTML += event.data;  // Hier verwenden wir innerHTML, um HTML-Tags zu rendern
+            console.log("data: " + event.data);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        };
+
+        eventSource.onerror = function() {
+            eventSource.close();
+            logDiv.innerHTML += "<br>Fehler beim Laden der Logs...</br>";
+        };
+    </script>
+</body>
+</html>

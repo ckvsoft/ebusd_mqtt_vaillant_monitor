@@ -1,16 +1,17 @@
+import re
+
 import eventlet
 
 eventlet.monkey_patch()  # Muss zuerst kommen!
 
 import threading
 import paho.mqtt.client as mqtt
-from flask import Flask, render_template, send_from_directory
+from flask import Flask, render_template, send_from_directory, Response
 from flask_socketio import SocketIO
 from datetime import datetime, timedelta
 import time
 import json
 import os
-import sys
 
 from core.log import Logger
 
@@ -18,7 +19,12 @@ from core.log import Logger
 app = Flask(__name__, static_url_path='/js', static_folder='js', template_folder='templates')
 socketio = SocketIO(app)
 # Logger initialisieren
-log = Logger(log_filename="vaillant2.log").get_logger()
+
+logger_instance = Logger(log_filename="vaillant2.log")  # Erstelle das Logger-Objekt
+LOG_FILE_PATH = logger_instance.get_log_file()  # Hole den Logfile-Pfad direkt von der Logger-Instanz
+
+# Jetzt kannst du den Logger verwenden
+log = logger_instance.get_logger()  # Hol dir den eigentlichen Logger
 
 # MQTT Callback-Funktionen
 def on_connect(client, _userdata, _flags, reason_code, _properties):
@@ -270,12 +276,52 @@ def reset_counter():
         socketio.emit('update_runtime', rt)
 
 
+def format_log_line(line):
+    """Formatierung der Log-Zeile mit Farbzuweisung für den Text in [ ] und Zeilenumbrüchen."""
+
+    line = line.strip()
+    # Farbzuweisung für die Log-Level in [ ]
+    line = re.sub(r'(\[I[^\]]*\])', r'<span style="color: green;">\1</span>', line)
+    line = re.sub(r'(\[D[^\]]*\])', r'<span style="color: blue;">\1</span>', line)
+    line = re.sub(r'(\[E[^\]]*\])', r'<span style="color: red;">\1</span>', line)
+
+    # Zeilenumbruch sicherstellen
+    return f'{line}<br>'
+
+
+def read_log_file():
+    """Funktion, die das Logfile liest und kontinuierlich neue Zeilen sendet."""
+    with open(LOG_FILE_PATH, 'r') as f:
+        f.seek(0, os.SEEK_END)  # Setzt den Dateizeiger ans Ende des Logfiles
+        while True:
+            line = f.readline()
+            if not line:
+                time.sleep(0.1)  # Warten auf neue Zeilen
+                continue
+            formatted_line = format_log_line(line)  # Formatierung der Zeile
+            yield f"data: {formatted_line}\n\n"  # Sende die Log-Zeile an den Client
+
+def read_entire_log_file():
+    """Funktion, die das gesamte Logfile beim ersten Aufruf liest."""
+    with open(LOG_FILE_PATH, 'r') as f:
+        for line in f:
+            formatted_line = format_log_line(line)  # Formatierung der Zeile
+            yield f"data: {formatted_line}\n\n"  # Sende jede Zeile an den Client
+
 @app.route('/update_log')
 def update_log():
-    # hide_debug = request.args.get('hide_debug', 'false').lower() == 'true'
-    logs = ["Log 1: Something happened", "Log 2: Another event"]
-    return render_template('logs.html', logs=logs)
+    """Route, um den Logfile-Stream mit SSE an den Client zu senden."""
+    def stream_logs():
+        # Das gesamte Logfile senden
+        yield from read_entire_log_file()
+        # Danach nur neue Logzeilen (wie tail -f)
+        yield from read_log_file()
 
+    return Response(stream_logs(), content_type='text/event-stream')
+
+@app.route('/logger')
+def logger():
+    return render_template('logs.html')
 
 @app.route('/favicon.ico')
 def favicon():

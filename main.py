@@ -316,8 +316,12 @@ def update_log():
         yield from read_entire_log_file()
         # Danach nur neue Logzeilen (wie tail -f)
         yield from read_log_file()
-
-    return Response(stream_logs(), content_type='text/event-stream')
+    headers = {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "X-Accel-Buffering": "no"  # Bei Verwendung von Nginx
+    }
+    return Response(stream_logs(), headers=headers)
 
 @app.route('/logger')
 def logger():

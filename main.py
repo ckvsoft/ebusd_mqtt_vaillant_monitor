@@ -111,7 +111,8 @@ def on_message(_client, _userdata, msg):
                         if not hwc["switch"]:
                             counter["today"] += 1
                             counter["total"] += 1
-                            log.info(f"start run {counter.get("today")} - {status}")
+                            c = counter.get("today")
+                            log.info(f"start run {c} - {status}")
 
                         if status == "hwc":
                             hwc["status"] = True
@@ -129,7 +130,8 @@ def on_message(_client, _userdata, msg):
                             topic_config["start_time"] = ""
                             hwc["sub"] = 0
                             hwc["switch"] = False
-                            log.info(f"stop run {counter.get("today")} - {status} - elapsed: {elapsed}")
+                            c = counter.get("today")
+                            log.info(f"stop run {c} - {status} - elapsed: {elapsed}")
 
 
                     socketio.emit('update_led', {
